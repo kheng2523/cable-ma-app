@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0F172A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Optic Cable Field App</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  :root{
+    --bg:#0F172A;--bg2:#1E293B;--bg3:#334155;
+    --text:#F1F5F9;--text2:#94A3B8;--text3:#64748B;
+    --green:#22C55E;--green-dim:#166534;
+    --red:#EF4444;--red-dim:#7F1D1D;
+    --amber:#F59E0B;--amber-dim:#78350F;
+    --blue:#38BDF8;--blue-dim:#0C4A6E;
+    --border:#334155;--radius:12px;
+  }
+  body{background:var(--bg);color:var(--text);font-family:'Sarabun',sans-serif;min-height:100vh;overflow-x:hidden;}
+
+  /* HEADER */
+  .header{background:var(--bg2);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;}
+  .header-icon{width:36px;height:36px;background:var(--blue-dim);border-radius:8px;display:flex;align-items:center;justify-content:center;}
+  .header-icon svg{width:20px;height:20px;stroke:var(--blue);fill:none;stroke-width:2;}
+  .header-title{font-size:16px;font-weight:700;letter-spacing:.3px;}
+  .header-sub{font-size:11px;color:var(--text2);font-family:'IBM Plex Mono',monospace;}
+  .queue-badge{margin-left:auto;background:var(--amber-dim);color:var(--amber);font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;display:none;}
+  .queue-badge.show{display:block;}
+
+  /* NAV */
+  .nav{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);}
+  .nav-btn{flex:1;padding:10px 4px;font-size:12px;font-family:'Sarabun',sans-serif;font-weight:500;background:none;border:none;color:var(--text2);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:color .2s;}
+  .nav-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;}
+  .nav-btn.active{color:var(--blue);border-bottom:2px solid var(--blue);}
+
+  /* PAGES */
+  .page{display:none;padding:16px;padding-bottom:80px;}
+  .page.active{display:block;}
+
+  /* STATUS CARD */
+  .status-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;}
+  .status-label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;font-family:'IBM Plex Mono',monospace;margin-bottom:6px;}
+  .status-val{font-size:22px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:var(--text);}
+  .status-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+
+  /* RECORD BUTTON */
+  .rec-wrap{display:flex;justify-content:center;margin:24px 0;}
+  .rec-btn{width:120px;height:120px;border-radius:50%;border:3px solid var(--green);background:rgba(34,197,94,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;gap:6px;}
+  .rec-btn.recording{border-color:var(--red);background:rgba(239,68,68,.08);animation:pulse 1.5s infinite;}
+  .rec-btn svg{width:36px;height:36px;stroke:var(--green);fill:none;stroke-width:2;}
+  .rec-btn.recording svg{stroke:var(--red);}
+  .rec-btn-label{font-size:13px;font-weight:700;color:var(--green);}
+  .rec-btn.recording .rec-btn-label{color:var(--red);}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.3);}50%{box-shadow:0 0 0 16px rgba(239,68,68,0);}}
+
+  /* PHOTO PREVIEW */
+  .photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+  .photo-slot{background:var(--bg2);border:1px dashed var(--border);border-radius:var(--radius);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;overflow:hidden;position:relative;}
+  .photo-slot img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;}
+  .photo-slot-label{font-size:10px;color:var(--text3);font-family:'IBM Plex Mono',monospace;}
+  .photo-badge{position:absolute;top:6px;left:6px;background:var(--bg);opacity:.85;border-radius:4px;padding:2px 6px;font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--text2);}
+
+  /* COORD BOX */
+  .coord-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;}
+  .coord-title{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;font-family:'IBM Plex Mono',monospace;margin-bottom:4px;}
+  .coord-val{font-size:13px;font-family:'IBM Plex Mono',monospace;color:var(--blue);}
+  .coord-val.empty{color:var(--text3);}
+
+  /* DISTANCE BOX */
+  .dist-box{background:linear-gradient(135deg,var(--blue-dim),var(--bg2));border:1px solid var(--blue);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;}
+  .dist-num{font-size:28px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:var(--blue);}
+  .dist-unit{font-size:13px;color:var(--text2);margin-top:4px;}
+
+  /* FORM */
+  .form-section{margin-bottom:20px;}
+  .form-label{font-size:12px;color:var(--text2);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;display:block;}
+  .form-input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:15px;font-family:'Sarabun',sans-serif;color:var(--text);outline:none;transition:border-color .2s;}
+  .form-input:focus{border-color:var(--blue);}
+  .form-input::placeholder{color:var(--text3);}
+  select.form-input option{background:var(--bg2);}
+
+  /* RADIO OPTIONS */
+  .radio-group{display:flex;flex-direction:column;gap:8px;}
+  .radio-opt{background:var(--bg2);border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .2s;display:flex;align-items:flex-start;gap:10px;}
+  .radio-opt.selected{border-color:var(--blue);background:rgba(56,189,248,.07);}
+  .radio-dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--text3);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+  .radio-opt.selected .radio-dot{border-color:var(--blue);}
+  .radio-dot-inner{width:8px;height:8px;border-radius:50%;background:var(--blue);display:none;}
+  .radio-opt.selected .radio-dot-inner{display:block;}
+  .radio-text{font-size:14px;line-height:1.5;}
+  .radio-sub{font-size:12px;color:var(--text2);margin-top:3px;}
+
+  /* REASON CHECKBOXES */
+  .check-group{display:flex;flex-direction:column;gap:6px;margin-top:10px;padding:12px;background:var(--bg3);border-radius:8px;}
+  .check-item{display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;}
+  .check-box{width:18px;height:18px;border-radius:4px;border:2px solid var(--text3);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+  .check-item.checked .check-box{background:var(--blue);border-color:var(--blue);}
+  .check-box svg{width:10px;height:10px;stroke:#fff;fill:none;stroke-width:3;display:none;}
+  .check-item.checked .check-box svg{display:block;}
+  .check-label{font-size:13px;color:var(--text2);}
+
+  /* SUBMIT BTN */
+  .submit-btn{width:100%;padding:14px;background:var(--green-dim);border:1.5px solid var(--green);border-radius:var(--radius);color:var(--green);font-size:16px;font-weight:700;font-family:'Sarabun',sans-serif;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .submit-btn:active{transform:scale(.97);}
+  .submit-btn svg{width:18px;height:18px;stroke:var(--green);fill:none;stroke-width:2.5;}
+  .submit-btn:disabled{opacity:.5;cursor:not-allowed;}
+
+  /* QUEUE PAGE */
+  .queue-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;}
+  .queue-item-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .queue-job{font-size:13px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:var(--blue);}
+  .queue-status{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:600;}
+  .queue-status.pending{background:var(--amber-dim);color:var(--amber);}
+  .queue-status.sending{background:var(--blue-dim);color:var(--blue);}
+  .queue-status.done{background:var(--green-dim);color:var(--green);}
+  .queue-meta{font-size:12px;color:var(--text2);line-height:1.8;}
+  .queue-actions{display:flex;gap:8px;margin-top:10px;}
+  .queue-act-btn{flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text2);font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;}
+  .queue-act-btn.send{border-color:var(--green);color:var(--green);}
+  .queue-act-btn.del{border-color:var(--red);color:var(--red);}
+
+  /* EMPTY STATE */
+  .empty{text-align:center;padding:48px 24px;color:var(--text3);}
+  .empty svg{width:48px;height:48px;stroke:var(--text3);fill:none;stroke-width:1.5;margin-bottom:12px;}
+  .empty p{font-size:14px;}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 20px;font-size:14px;font-weight:500;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+  .toast.show{opacity:1;}
+  .toast.success{border-color:var(--green);color:var(--green);}
+  .toast.error{border-color:var(--red);color:var(--red);}
+  .toast.info{border-color:var(--blue);color:var(--blue);}
+
+  /* SECTION TITLE */
+  .section-title{font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;font-family:'IBM Plex Mono',monospace;margin:20px 0 10px;}
+
+  /* GPS INDICATOR */
+  .gps-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);display:inline-block;margin-right:4px;}
+  .gps-dot.active{background:var(--green);animation:blink 1s infinite;}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;};}
+
+  /* STEP INDICATOR */
+  .steps{display:flex;align-items:center;margin-bottom:20px;gap:0;}
+  .step{flex:1;text-align:center;}
+  .step-circle{width:32px;height:32px;border-radius:50%;border:2px solid var(--border);margin:0 auto 4px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--text3);background:var(--bg2);}
+  .step.done .step-circle{background:var(--green-dim);border-color:var(--green);color:var(--green);}
+  .step.active .step-circle{background:var(--blue-dim);border-color:var(--blue);color:var(--blue);}
+  .step-label{font-size:10px;color:var(--text3);}
+  .step.done .step-label,.step.active .step-label{color:var(--text2);}
+  .step-line{flex:none;width:32px;height:2px;background:var(--border);margin-top:-18px;}
+  .step-line.done{background:var(--green);}
+
+  /* CAMERA HIDDEN */
+  #cam-start,#cam-stop{display:none;}
+
+  /* WEBHOOK CONFIG */
+  .config-box{background:var(--bg2);border:1px solid var(--amber);border-radius:var(--radius);padding:14px;margin-bottom:16px;}
+  .config-label{font-size:11px;color:var(--amber);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">
+    <svg viewBox="0 0 24 24"><path d="M3 12h18M3 6l4 6-4 6M21 6l-4 6 4 6"/></svg>
+  </div>
+  <div>
+    <div class="header-title">Optic Cable MA</div>
+    <div class="header-sub">Field Report System</div>
+  </div>
+  <div class="queue-badge" id="queueBadge">0 รอส่ง</div>
+</div>
+
+<div class="nav">
+  <button class="nav-btn active" onclick="showPage('record')" id="nav-record">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>
+    บันทึก
+  </button>
+  <button class="nav-btn" onclick="showPage('form')" id="nav-form">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/></svg>
+    ข้อมูล
+  </button>
+  <button class="nav-btn" onclick="showPage('queue')" id="nav-queue">
+    <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    คิว
+  </button>
+  <button class="nav-btn" onclick="showPage('settings')" id="nav-settings">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    ตั้งค่า
+  </button>
+</div>
+
+<!-- PAGE: RECORD -->
+<div class="page active" id="page-record">
+  <div class="steps">
+    <div class="step" id="step1" class="active">
+      <div class="step-circle">1</div>
+      <div class="step-label">จุดเริ่ม</div>
+    </div>
+    <div class="step-line" id="line1"></div>
+    <div class="step" id="step2">
+      <div class="step-circle">2</div>
+      <div class="step-label">จุดสิ้นสุด</div>
+    </div>
+    <div class="step-line" id="line2"></div>
+    <div class="step" id="step3">
+      <div class="step-circle">3</div>
+      <div class="step-label">ระยะทาง</div>
+    </div>
+  </div>
+
+  <div class="status-row">
+    <div class="status-card">
+      <div class="status-label"><span class="gps-dot" id="gpsDot"></span>GPS</div>
+      <div class="status-val" id="gpsStatus" style="font-size:14px;color:var(--text3);">รอสัญญาณ</div>
+    </div>
+    <div class="status-card">
+      <div class="status-label">แม่นยำ</div>
+      <div class="status-val" id="gpsAccuracy" style="font-size:14px;color:var(--text3);">-</div>
+    </div>
+  </div>
+
+  <div class="rec-wrap">
+    <div class="rec-btn" id="recBtn" onclick="toggleRecord()">
+      <svg id="recIcon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></svg>
+      <div class="rec-btn-label" id="recLabel">START</div>
+    </div>
+  </div>
+
+  <input type="file" id="cam-start" accept="image/*" capture="environment" onchange="handlePhoto(this,'start')">
+  <input type="file" id="cam-stop" accept="image/*" capture="environment" onchange="handlePhoto(this,'stop')">
+
+  <div class="photo-grid">
+    <div class="photo-slot" id="photoStart">
+      <svg viewBox="0 0 24 24" width="28" height="28" stroke="var(--text3)" fill="none" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <div class="photo-slot-label">จุดเริ่มต้น</div>
+    </div>
+    <div class="photo-slot" id="photoStop">
+      <svg viewBox="0 0 24 24" width="28" height="28" stroke="var(--text3)" fill="none" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <div class="photo-slot-label">จุดสิ้นสุด</div>
+    </div>
+  </div>
+
+  <div class="coord-box">
+    <div class="coord-title">จุดเริ่มต้น (Start)</div>
+    <div class="coord-val empty" id="coordStart">ยังไม่ได้บันทึก</div>
+  </div>
+  <div class="coord-box">
+    <div class="coord-title">จุดสิ้นสุด (Stop)</div>
+    <div class="coord-val empty" id="coordStop">ยังไม่ได้บันทึก</div>
+  </div>
+
+  <div id="distBox" style="display:none;">
+    <div class="section-title">ระยะทาง</div>
+    <div class="dist-box">
+      <svg viewBox="0 0 24 24" width="28" height="28" stroke="var(--blue)" fill="none" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
+      <div>
+        <div class="dist-num" id="distVal">0</div>
+        <div class="dist-unit">เมตร (ตามแนวเส้นตรง)</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="submit-btn" id="nextBtn" onclick="showPage('form')" style="display:none;">
+    <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    ไปกรอกข้อมูล
+  </button>
+</div>
+
+<!-- PAGE: FORM -->
+<div class="page" id="page-form">
+  <div class="form-section">
+    <label class="form-label">No. Job Temp</label>
+    <input class="form-input" type="text" id="jobNo" placeholder="เช่น TMP-2024-001">
+  </div>
+
+  <div class="form-section">
+    <label class="form-label">ขนาด Cable</label>
+    <select class="form-input" id="cableCore">
+      <option value="">-- เลือกขนาด --</option>
+      <option value="4">4 Core</option>
+      <option value="6">6 Core</option>
+      <option value="12">12 Core</option>
+      <option value="24">24 Core</option>
+      <option value="48">48 Core</option>
+      <option value="96">96 Core</option>
+      <option value="144">144 Core</option>
+      <option value="other">อื่นๆ (ระบุ)</option>
+    </select>
+    <input class="form-input" type="text" id="cableOther" placeholder="ระบุขนาด core" style="display:none;margin-top:8px;">
+  </div>
+
+  <div class="form-section">
+    <label class="form-label">ระยะทางที่ต้องคร่อมสาย (เมตร)</label>
+    <input class="form-input" type="number" id="spanDist" placeholder="ระยะทางที่ต้องคร่อม" id="spanDist">
+  </div>
+
+  <div class="form-section">
+    <label class="form-label">ประเภทงาน / การแก้ไข</label>
+    <div class="radio-group" id="workTypeGroup">
+      <div class="radio-opt" onclick="selectWork(this,'self1')">
+        <div class="radio-dot"><div class="radio-dot-inner"></div></div>
+        <div>
+          <div class="radio-text">สามารถเก็บ ยกสาย และหัวต่อขึ้นเสาเองได้</div>
+          <div class="radio-sub">ทำเองได้ (1 ทีม)</div>
+        </div>
+      </div>
+      <div class="radio-opt" onclick="selectWork(this,'splice1')">
+        <div class="radio-dot"><div class="radio-dot-inner"></div></div>
+        <div>
+          <div class="radio-text">ต้องคร่อมสายและตัดต่อใหม่ — สามารถทำเองได้</div>
+          <div class="radio-sub">ทำเองได้ (อาจต้องมากกว่า 1 ทีม)</div>
+        </div>
+      </div>
+      <div class="radio-opt" onclick="selectWork(this,'outsource')">
+        <div class="radio-dot"><div class="radio-dot-inner"></div></div>
+        <div>
+          <div class="radio-text">ต้องคร่อมสายและตัดต่อใหม่ — ไม่สามารถทำเองได้</div>
+          <div class="radio-sub" style="color:var(--amber);">Over Scope — ต้องจัดจ้าง</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="reasonGroup" style="display:none;margin-top:12px;">
+      <div class="form-label" style="margin-bottom:6px;">สาเหตุที่ไม่สามารถทำเองได้</div>
+      <div class="check-group">
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div class="check-label">มีความยาก — ข้ามห้วย / ข้ามเหว</div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div class="check-label">ต้องคร่อมสายระยะทางไกล</div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div class="check-label">งานย้ายแนวเสาไฟฟ้าหลายสิบต้น</div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div class="check-label">อื่นๆ</div>
+        </div>
+      </div>
+      <input class="form-input" type="text" id="reasonOther" placeholder="ระบุสาเหตุเพิ่มเติม" style="margin-top:8px;">
+    </div>
+  </div>
+
+  <div class="form-section">
+    <label class="form-label">หมายเหตุเพิ่มเติม</label>
+    <textarea class="form-input" id="note" rows="3" placeholder="ข้อมูลเพิ่มเติม..." style="resize:none;"></textarea>
+  </div>
+
+  <button class="submit-btn" id="submitBtn" onclick="submitData()">
+    <svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+    บันทึกและส่งข้อมูล
+  </button>
+</div>
+
+<!-- PAGE: QUEUE -->
+<div class="page" id="page-queue">
+  <div id="queueList"></div>
+  <div class="empty" id="queueEmpty" style="display:none;">
+    <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    <p>ไม่มีรายการรอส่ง<br>ข้อมูลทั้งหมดส่งแล้ว</p>
+  </div>
+</div>
+
+<!-- PAGE: SETTINGS -->
+<div class="page" id="page-settings">
+  <div class="config-box">
+    <div class="config-label">Power Automate Webhook URL</div>
+    <input class="form-input" type="url" id="webhookUrl" placeholder="https://prod.westus.logic.azure.com/..." style="margin-bottom:0;">
+  </div>
+  <div class="form-section">
+    <label class="form-label">Google Maps API Key (ระยะทางตามถนน)</label>
+    <input class="form-input" type="text" id="mapsApiKey" placeholder="AIza...">
+    <div style="font-size:12px;color:var(--text3);margin-top:6px;">ถ้าไม่ใส่จะคำนวณระยะเส้นตรงแทน</div>
+  </div>
+  <button class="submit-btn" onclick="saveSettings()">
+    <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    บันทึกการตั้งค่า
+  </button>
+
+  <div class="section-title" style="margin-top:24px;">เกี่ยวกับแอพ</div>
+  <div class="status-card">
+    <div style="font-size:13px;color:var(--text2);line-height:2;">
+      <div>Optic Cable MA Field App <span style="color:var(--blue);font-family:'IBM Plex Mono',monospace;">v1.0</span></div>
+      <div>รองรับ Offline + Auto Sync</div>
+      <div>Power Automate → Excel Online</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let state = {
+  recording: false,
+  startCoord: null,
+  stopCoord: null,
+  startPhoto: null,
+  stopPhoto: null,
+  distance: null,
+  workType: null,
+  currentStep: 1
+};
+
+let watchId = null;
+let currentCoord = null;
+
+// INIT
+window.onload = () => {
+  loadSettings();
+  renderQueue();
+  startGPS();
+  updateQueueBadge();
+
+  // Auto-fill distance from record page
+  document.getElementById('cableCore').addEventListener('change', function(){
+    document.getElementById('cableOther').style.display = this.value === 'other' ? 'block' : 'none';
+  });
+};
+
+function startGPS(){
+  if(!navigator.geolocation){ showToast('GPS ไม่รองรับ','error'); return; }
+  watchId = navigator.geolocation.watchPosition(pos => {
+    currentCoord = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy };
+    document.getElementById('gpsStatus').textContent = currentCoord.lat.toFixed(6)+', '+currentCoord.lng.toFixed(6);
+    document.getElementById('gpsStatus').style.color = 'var(--green)';
+    document.getElementById('gpsAccuracy').textContent = '±'+Math.round(pos.coords.accuracy)+'m';
+    document.getElementById('gpsAccuracy').style.color = pos.coords.accuracy < 10 ? 'var(--green)' : pos.coords.accuracy < 30 ? 'var(--amber)' : 'var(--red)';
+    document.getElementById('gpsDot').classList.add('active');
+  }, err => {
+    document.getElementById('gpsStatus').textContent = 'ไม่พบสัญญาณ';
+    document.getElementById('gpsStatus').style.color = 'var(--red)';
+  }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 });
+}
+
+function toggleRecord(){
+  if(!state.recording){
+    // START
+    if(!currentCoord){ showToast('รอสัญญาณ GPS ก่อน','error'); return; }
+    state.startCoord = {...currentCoord};
+    state.recording = true;
+    document.getElementById('recBtn').classList.add('recording');
+    document.getElementById('recLabel').textContent = 'STOP';
+    document.getElementById('recIcon').innerHTML = '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/>';
+    document.getElementById('coordStart').textContent = state.startCoord.lat.toFixed(6)+', '+state.startCoord.lng.toFixed(6);
+    document.getElementById('coordStart').classList.remove('empty');
+    setStep(1, 'done'); setStep(2, 'active');
+    // Take start photo
+    document.getElementById('cam-start').click();
+    showToast('บันทึกจุดเริ่มต้นแล้ว','success');
+  } else {
+    // STOP
+    if(!currentCoord){ showToast('รอสัญญาณ GPS ก่อน','error'); return; }
+    state.stopCoord = {...currentCoord};
+    state.recording = false;
+    document.getElementById('recBtn').classList.remove('recording');
+    document.getElementById('recLabel').textContent = 'START';
+    document.getElementById('recIcon').innerHTML = '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>';
+    document.getElementById('coordStop').textContent = state.stopCoord.lat.toFixed(6)+', '+state.stopCoord.lng.toFixed(6);
+    document.getElementById('coordStop').classList.remove('empty');
+    setStep(2, 'done'); setStep(3, 'active');
+    document.getElementById('line2').classList.add('done');
+    // Take stop photo
+    document.getElementById('cam-stop').click();
+    calcDistance();
+    showToast('บันทึกจุดสิ้นสุดแล้ว','success');
+  }
+}
+
+function setStep(n, status){
+  const el = document.getElementById('step'+n);
+  el.className = 'step '+status;
+  if(n < 3) document.getElementById('line'+n).className = 'step-line '+(status==='done'?'done':'');
+}
+
+function handlePhoto(input, type){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const data = e.target.result;
+    if(type === 'start'){
+      state.startPhoto = data;
+      const slot = document.getElementById('photoStart');
+      slot.innerHTML = '<img src="'+data+'"><div class="photo-badge">START</div>';
+    } else {
+      state.stopPhoto = data;
+      const slot = document.getElementById('photoStop');
+      slot.innerHTML = '<img src="'+data+'"><div class="photo-badge">STOP</div>';
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function calcDistance(){
+  if(!state.startCoord || !state.stopCoord) return;
+  const R = 6371000;
+  const dLat = (state.stopCoord.lat - state.startCoord.lat) * Math.PI/180;
+  const dLng = (state.stopCoord.lng - state.startCoord.lng) * Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(state.startCoord.lat*Math.PI/180)*Math.cos(state.stopCoord.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+  const dist = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+  state.distance = dist;
+  document.getElementById('distVal').textContent = dist.toLocaleString();
+  document.getElementById('distBox').style.display = 'block';
+  document.getElementById('nextBtn').style.display = 'flex';
+  document.getElementById('spanDist').value = dist;
+  setStep(3, 'done');
+
+  // Try Google Maps API if key available
+  const apiKey = localStorage.getItem('mapsApiKey');
+  if(apiKey){
+    fetchRoadDistance(apiKey, dist);
+  }
+}
+
+async function fetchRoadDistance(apiKey, fallback){
+  try {
+    const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${state.startCoord.lat},${state.startCoord.lng}&destinations=${state.stopCoord.lat},${state.stopCoord.lng}&key=${apiKey}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if(data.rows?.[0]?.elements?.[0]?.distance?.value){
+      const roadDist = data.rows[0].elements[0].distance.value;
+      state.distance = roadDist;
+      document.getElementById('distVal').textContent = roadDist.toLocaleString();
+      document.querySelector('.dist-unit').textContent = 'เมตร (ตามเส้นทางถนน)';
+      document.getElementById('spanDist').value = roadDist;
+    }
+  } catch(e){ /* use fallback */ }
+}
+
+function selectWork(el, type){
+  document.querySelectorAll('.radio-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  state.workType = type;
+  document.getElementById('reasonGroup').style.display = type === 'outsource' ? 'block' : 'none';
+}
+
+function toggleCheck(el){
+  el.classList.toggle('checked');
+}
+
+async function submitData(){
+  const jobNo = document.getElementById('jobNo').value.trim();
+  if(!jobNo){ showToast('กรุณาใส่ No. Job Temp','error'); return; }
+  if(!state.workType){ showToast('กรุณาเลือกประเภทงาน','error'); return; }
+
+  const cableCore = document.getElementById('cableCore').value;
+  const cableOther = document.getElementById('cableOther').value;
+  const spanDist = document.getElementById('spanDist').value;
+  const note = document.getElementById('note').value;
+
+  const reasons = [];
+  document.querySelectorAll('.check-item.checked .check-label').forEach(el => reasons.push(el.textContent));
+  if(document.getElementById('reasonOther').value) reasons.push(document.getElementById('reasonOther').value);
+
+  const workTypeMap = {
+    'self1': 'สามารถเก็บ ยกสาย และหัวต่อขึ้นเสาเองได้',
+    'splice1': 'ต้องคร่อมสายและตัดต่อใหม่ — ทำเองได้',
+    'outsource': 'ต้องคร่อมสายและตัดต่อใหม่ — Over Scope (จัดจ้าง)'
+  };
+
+  const record = {
+    id: Date.now().toString(),
+    timestamp: new Date().toISOString(),
+    jobNo,
+    cableCore: cableCore === 'other' ? cableOther : cableCore,
+    spanDistance: spanDist,
+    straightDistance: state.distance,
+    startCoord: state.startCoord,
+    stopCoord: state.stopCoord,
+    workType: workTypeMap[state.workType],
+    reasons: reasons.join(', '),
+    note,
+    startPhoto: state.startPhoto,
+    stopPhoto: state.stopPhoto,
+    status: 'pending'
+  };
+
+  // Save to queue
+  const queue = getQueue();
+  queue.push(record);
+  saveQueue(queue);
+  updateQueueBadge();
+
+  showToast('บันทึกแล้ว! กำลังส่งข้อมูล...','info');
+  resetForm();
+
+  // Try to send
+  await trySendQueue();
+  showPage('queue');
+}
+
+async function trySendQueue(){
+  const webhookUrl = localStorage.getItem('webhookUrl');
+  if(!webhookUrl) return;
+
+  const queue = getQueue();
+  let updated = false;
+
+  for(let i = 0; i < queue.length; i++){
+    if(queue[i].status !== 'pending') continue;
+    queue[i].status = 'sending';
+    saveQueue(queue);
+    renderQueue();
+
+    try {
+      const payload = {...queue[i]};
+      delete payload.startPhoto;
+      delete payload.stopPhoto;
+
+      const res = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+
+      if(res.ok || res.status === 202){
+        queue[i].status = 'done';
+        showToast('ส่งข้อมูล '+queue[i].jobNo+' สำเร็จ','success');
+      } else {
+        queue[i].status = 'pending';
+      }
+    } catch(e){
+      queue[i].status = 'pending';
+    }
+    updated = true;
+  }
+
+  if(updated){ saveQueue(queue); renderQueue(); updateQueueBadge(); }
+}
+
+function getQueue(){ try{ return JSON.parse(localStorage.getItem('offlineQueue')||'[]'); }catch(e){ return []; } }
+function saveQueue(q){ localStorage.setItem('offlineQueue', JSON.stringify(q)); }
+
+function renderQueue(){
+  const queue = getQueue();
+  const pending = queue.filter(r => r.status !== 'done');
+  const list = document.getElementById('queueList');
+  const empty = document.getElementById('queueEmpty');
+
+  if(queue.length === 0){ list.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+
+  list.innerHTML = queue.slice().reverse().map(r => `
+    <div class="queue-item">
+      <div class="queue-item-header">
+        <div class="queue-job">${r.jobNo}</div>
+        <div class="queue-status ${r.status}">${r.status==='pending'?'รอส่ง':r.status==='sending'?'กำลังส่ง':'ส่งแล้ว'}</div>
+      </div>
+      <div class="queue-meta">
+        📅 ${new Date(r.timestamp).toLocaleString('th-TH')}<br>
+        📡 ${r.cableCore} Core &nbsp;|&nbsp; 📏 ${Number(r.spanDistance).toLocaleString()} ม.<br>
+        🔧 ${r.workType}
+        ${r.reasons ? '<br>⚠️ '+r.reasons : ''}
+      </div>
+      <div class="queue-actions">
+        ${r.status!=='done'?`<button class="queue-act-btn send" onclick="retrySend('${r.id}')">ส่งอีกครั้ง</button>`:''}
+        <button class="queue-act-btn del" onclick="deleteRecord('${r.id}')">ลบ</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function retrySend(id){
+  const queue = getQueue();
+  const rec = queue.find(r => r.id === id);
+  if(rec) rec.status = 'pending';
+  saveQueue(queue);
+  await trySendQueue();
+}
+
+function deleteRecord(id){
+  let queue = getQueue().filter(r => r.id !== id);
+  saveQueue(queue);
+  renderQueue();
+  updateQueueBadge();
+}
+
+function updateQueueBadge(){
+  const count = getQueue().filter(r => r.status === 'pending').length;
+  const badge = document.getElementById('queueBadge');
+  if(count > 0){ badge.textContent = count+' รอส่ง'; badge.classList.add('show'); }
+  else { badge.classList.remove('show'); }
+}
+
+function resetForm(){
+  state = { recording:false, startCoord:null, stopCoord:null, startPhoto:null, stopPhoto:null, distance:null, workType:null, currentStep:1 };
+  document.getElementById('coordStart').textContent='ยังไม่ได้บันทึก'; document.getElementById('coordStart').className='coord-val empty';
+  document.getElementById('coordStop').textContent='ยังไม่ได้บันทึก'; document.getElementById('coordStop').className='coord-val empty';
+  document.getElementById('photoStart').innerHTML='<svg viewBox="0 0 24 24" width="28" height="28" stroke="var(--text3)" fill="none" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><div class="photo-slot-label">จุดเริ่มต้น</div>';
+  document.getElementById('photoStop').innerHTML='<svg viewBox="0 0 24 24" width="28" height="28" stroke="var(--text3)" fill="none" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><div class="photo-slot-label">จุดสิ้นสุด</div>';
+  document.getElementById('distBox').style.display='none';
+  document.getElementById('nextBtn').style.display='none';
+  document.getElementById('recBtn').classList.remove('recording');
+  document.getElementById('recLabel').textContent='START';
+  document.getElementById('recIcon').innerHTML='<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>';
+  [1,2,3].forEach(n=>setStep(n,n===1?'active':''));
+  document.getElementById('jobNo').value='';
+  document.getElementById('cableCore').value='';
+  document.getElementById('spanDist').value='';
+  document.getElementById('note').value='';
+  document.getElementById('reasonGroup').style.display='none';
+  document.querySelectorAll('.radio-opt').forEach(o=>o.classList.remove('selected'));
+  document.querySelectorAll('.check-item').forEach(o=>o.classList.remove('checked'));
+}
+
+function saveSettings(){
+  localStorage.setItem('webhookUrl', document.getElementById('webhookUrl').value);
+  localStorage.setItem('mapsApiKey', document.getElementById('mapsApiKey').value);
+  showToast('บันทึกการตั้งค่าแล้ว','success');
+}
+
+function loadSettings(){
+  const w = localStorage.getItem('webhookUrl');
+  const m = localStorage.getItem('mapsApiKey');
+  if(w) document.getElementById('webhookUrl').value = w;
+  if(m) document.getElementById('mapsApiKey').value = m;
+}
+
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.getElementById('nav-'+id).classList.add('active');
+  if(id==='queue') renderQueue();
+}
+
+function showToast(msg, type='info'){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show '+type;
+  setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+// Network listener for auto-sync
+window.addEventListener('online', ()=>{ showToast('มีสัญญาณแล้ว กำลัง sync...','info'); setTimeout(trySendQueue, 1000); });
+
+// Service Worker
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
