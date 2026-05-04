@@ -234,6 +234,7 @@
 
   <input type="file" id="cam-start" accept="image/*" capture="environment" onchange="handlePhoto(this,'start')">
   <input type="file" id="cam-stop" accept="image/*" capture="environment" onchange="handlePhoto(this,'stop')">
+  <input type="file" id="cam-extra" accept="image/*" capture="environment" multiple onchange="handleExtraPhotos(this)">
 
   <div class="photo-grid">
     <div class="photo-slot" id="photoStart">
@@ -253,6 +254,23 @@
   <div class="coord-box">
     <div class="coord-title">จุดสิ้นสุด (Stop)</div>
     <div class="coord-val empty" id="coordStop">ยังไม่ได้บันทึก</div>
+  </div>
+
+  <!-- EXTRA PHOTOS -->
+  <div id="extraPhotoSection" style="margin-bottom:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div class="section-title" style="margin:0;">รูประหว่างทาง</div>
+      <button onclick="document.getElementById('cam-extra').click()" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 14px;color:var(--text);font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;display:flex;align-items:center;gap:6px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        เพิ่มรูป
+      </button>
+    </div>
+    <div id="extraPhotoGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="photo-slot" style="border-style:dashed;">
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="var(--text3)" fill="none" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <div class="photo-slot-label">ยังไม่มีรูป</div>
+      </div>
+    </div>
   </div>
 
   <div id="distBox" style="display:none;">
@@ -276,20 +294,16 @@
 <div class="page" id="page-form">
   <div class="form-section">
     <label class="form-label">No. Job Temp</label>
-    <input class="form-input" type="text" id="jobNo" placeholder="เช่น TMP-2024-001">
+    <input class="form-input" type="text" id="jobNo" placeholder="เช่น JB26-xxxxxxx">
   </div>
 
   <div class="form-section">
     <label class="form-label">ขนาด Cable</label>
     <select class="form-input" id="cableCore">
       <option value="">-- เลือกขนาด --</option>
-      <option value="4">4 Core</option>
-      <option value="6">6 Core</option>
       <option value="12">12 Core</option>
       <option value="24">24 Core</option>
-      <option value="48">48 Core</option>
       <option value="96">96 Core</option>
-      <option value="144">144 Core</option>
       <option value="other">อื่นๆ (ระบุ)</option>
     </select>
     <input class="form-input" type="text" id="cableOther" placeholder="ระบุขนาด core" style="display:none;margin-top:8px;">
@@ -405,6 +419,7 @@ let state = {
   stopCoord: null,
   startPhoto: null,
   stopPhoto: null,
+  extraPhotos: [],
   distance: null,
   workType: null,
   currentStep: 1
@@ -500,6 +515,41 @@ function handlePhoto(input, type){
   reader.readAsDataURL(file);
 }
 
+function handleExtraPhotos(input){
+  const files = Array.from(input.files);
+  if(!files.length) return;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const data = e.target.result;
+      state.extraPhotos.push(data);
+      renderExtraPhotos();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderExtraPhotos(){
+  const grid = document.getElementById('extraPhotoGrid');
+  if(!state.extraPhotos.length){
+    grid.innerHTML = '<div class="photo-slot" style="border-style:dashed;"><svg viewBox="0 0 24 24" width="24" height="24" stroke="var(--text3)" fill="none" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><div class="photo-slot-label">ยังไม่มีรูป</div></div>';
+    return;
+  }
+  grid.innerHTML = state.extraPhotos.map((img, i) =>
+    '<div class="photo-slot" style="position:relative;">' +
+    '<img src="'+img+'" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;">' +
+    '<div class="photo-badge">'+( i+1)+'</div>' +
+    '<button onclick="removeExtraPhoto('+i+')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);border:none;border-radius:50%;width:22px;height:22px;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">×</button>' +
+    '</div>'
+  ).join('');
+}
+
+function removeExtraPhoto(i){
+  state.extraPhotos.splice(i, 1);
+  renderExtraPhotos();
+}
+
 function calcDistance(){
   if(!state.startCoord || !state.stopCoord) return;
   const R = 6371000;
@@ -581,6 +631,7 @@ async function submitData(){
     note,
     startPhoto: state.startPhoto,
     stopPhoto: state.stopPhoto,
+    extraPhotos: state.extraPhotos,
     status: 'pending'
   };
 
@@ -692,7 +743,8 @@ function updateQueueBadge(){
 }
 
 function resetForm(){
-  state = { recording:false, startCoord:null, stopCoord:null, startPhoto:null, stopPhoto:null, distance:null, workType:null, currentStep:1 };
+  state = { recording:false, startCoord:null, stopCoord:null, startPhoto:null, stopPhoto:null, extraPhotos:[], distance:null, workType:null, currentStep:1 };
+  renderExtraPhotos();
   document.getElementById('coordStart').textContent='ยังไม่ได้บันทึก'; document.getElementById('coordStart').className='coord-val empty';
   document.getElementById('coordStop').textContent='ยังไม่ได้บันทึก'; document.getElementById('coordStop').className='coord-val empty';
   document.getElementById('photoStart').innerHTML='<svg viewBox="0 0 24 24" width="28" height="28" stroke="var(--text3)" fill="none" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><div class="photo-slot-label">จุดเริ่มต้น</div>';
