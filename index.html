@@ -518,11 +518,22 @@ function handlePhoto(input, type){
 function handleExtraPhotos(input){
   const files = Array.from(input.files);
   if(!files.length) return;
+
+  // Capture GPS at moment of photo
+  const snapCoord = currentCoord ? {...currentCoord} : null;
+  const snapTime = new Date().toISOString();
+
   files.forEach(file => {
     const reader = new FileReader();
     reader.onload = e => {
       const data = e.target.result;
-      state.extraPhotos.push(data);
+      state.extraPhotos.push({
+        photo: data,
+        lat: snapCoord ? snapCoord.lat : null,
+        lng: snapCoord ? snapCoord.lng : null,
+        acc: snapCoord ? snapCoord.acc : null,
+        time: snapTime
+      });
       renderExtraPhotos();
     };
     reader.readAsDataURL(file);
@@ -536,13 +547,25 @@ function renderExtraPhotos(){
     grid.innerHTML = '<div class="photo-slot" style="border-style:dashed;"><svg viewBox="0 0 24 24" width="24" height="24" stroke="var(--text3)" fill="none" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><div class="photo-slot-label">ยังไม่มีรูป</div></div>';
     return;
   }
-  grid.innerHTML = state.extraPhotos.map((img, i) =>
-    '<div class="photo-slot" style="position:relative;">' +
-    '<img src="'+img+'" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;">' +
-    '<div class="photo-badge">'+( i+1)+'</div>' +
-    '<button onclick="removeExtraPhoto('+i+')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);border:none;border-radius:50%;width:22px;height:22px;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">×</button>' +
-    '</div>'
-  ).join('');
+  grid.innerHTML = state.extraPhotos.map((item, i) => {
+    const hasCoord = item.lat && item.lng;
+    const coordText = hasCoord
+      ? item.lat.toFixed(5)+','+item.lng.toFixed(5)
+      : 'ไม่มีพิกัด';
+    const timeText = item.time
+      ? new Date(item.time).toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'})
+      : '';
+    return '<div style="display:flex;flex-direction:column;gap:4px;">' +
+      '<div class="photo-slot" style="position:relative;">' +
+      '<img src="'+(item.photo || item)+'" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;">' +
+      '<div class="photo-badge">'+(i+1)+'</div>' +
+      '<button onclick="removeExtraPhoto('+i+')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);border:none;border-radius:50%;width:22px;height:22px;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">×</button>' +
+      '</div>' +
+      '<div style="font-size:10px;font-family:'IBM Plex Mono',monospace;color:'+(hasCoord?'var(--green)':'var(--red)')+';text-align:center;line-height:1.4;padding:2px 0;">' +
+      '📍 '+coordText+'<br>🕐 '+timeText +
+      '</div>' +
+      '</div>';
+  }).join('');
 }
 
 function removeExtraPhoto(i){
@@ -635,10 +658,32 @@ async function submitData(){
     status: 'pending'
   };
 
-  // Save to queue
+  // Save record with photos to queue
   const queue = getQueue();
   queue.push(record);
-  saveQueue(queue);
+  try {
+    saveQueue(queue);
+  } catch(e) {
+    // If too large, try saving without extra photos
+    try {
+      const recordNoExtra = {...record};
+      recordNoExtra.extraPhotos = [];
+      const q2 = getQueue();
+      q2.push(recordNoExtra);
+      saveQueue(q2);
+      showToast('พื้นที่จำกัด บันทึกเฉพาะรูป Start/Stop','info');
+    } catch(e2) {
+      // Last resort: save without any photos
+      const recordNoPhoto = {...record};
+      delete recordNoPhoto.startPhoto;
+      delete recordNoPhoto.stopPhoto;
+      recordNoPhoto.extraPhotos = [];
+      const q3 = getQueue();
+      q3.push(recordNoPhoto);
+      saveQueue(q3);
+      showToast('พื้นที่เต็ม บันทึกเฉพาะข้อมูลครับ','error');
+    }
+  }
   updateQueueBadge();
 
   showToast('บันทึกแล้ว! กำลังส่งข้อมูล...','info');
@@ -664,8 +709,7 @@ async function trySendQueue(){
 
     try {
       const payload = {...queue[i]};
-      delete payload.startPhoto;
-      delete payload.stopPhoto;
+      // Send all data including photos as base64
 
       const res = await fetch(webhookUrl, {
         method: 'POST',
