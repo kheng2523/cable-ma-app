@@ -390,10 +390,11 @@
     <div class="config-label">Power Automate Webhook URL</div>
     <input class="form-input" type="url" id="webhookUrl" placeholder="https://prod.westus.logic.azure.com/..." style="margin-bottom:0;">
   </div>
-  <div class="form-section">
-    <label class="form-label">Google Maps API Key (ระยะทางตามถนน)</label>
-    <input class="form-input" type="text" id="mapsApiKey" placeholder="AIza...">
-    <div style="font-size:12px;color:var(--text3);margin-top:6px;">ถ้าไม่ใส่จะคำนวณระยะเส้นตรงแทน</div>
+  <div class="status-card" style="border-color:var(--green);margin-bottom:16px;">
+    <div style="font-size:12px;color:var(--green);line-height:1.8;">
+      🛣️ ระยะทางตามถนน ใช้ <strong>OSRM</strong> ฟรี 100%<br>
+      ไม่ต้องใช้ API Key ใดๆ ครับ
+    </div>
   </div>
   <button class="submit-btn" onclick="saveSettings()">
     <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -405,6 +406,7 @@
     <div style="font-size:13px;color:var(--text2);line-height:2;">
       <div>Optic Cable MA Field App <span style="color:var(--blue);font-family:'IBM Plex Mono',monospace;">v1.0</span></div>
       <div>รองรับ Offline + Auto Sync</div>
+      <div>ระยะทางถนน OSRM (ฟรี)</div>
       <div>Power Automate → Excel Online</div>
     </div>
   </div>
@@ -587,26 +589,28 @@ function calcDistance(){
   document.getElementById('spanDist').value = dist;
   setStep(3, 'done');
 
-  // Try Google Maps API if key available
-  const apiKey = localStorage.getItem('mapsApiKey');
-  if(apiKey){
-    fetchRoadDistance(apiKey, dist);
-  }
+  // Auto fetch road distance via OSRM (free, no API key needed)
+  fetchRoadDistanceOSRM(dist);
 }
 
-async function fetchRoadDistance(apiKey, fallback){
+async function fetchRoadDistanceOSRM(fallback){
   try {
-    const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${state.startCoord.lat},${state.startCoord.lng}&destinations=${state.stopCoord.lat},${state.stopCoord.lng}&key=${apiKey}`;
+    document.querySelector('.dist-unit').textContent = 'เมตร (กำลังคำนวณตามถนน...)';
+    const url = `https://router.project-osrm.org/route/v1/driving/${state.startCoord.lng},${state.startCoord.lat};${state.stopCoord.lng},${state.stopCoord.lat}?overview=false`;
     const res = await fetch(url);
     const data = await res.json();
-    if(data.rows?.[0]?.elements?.[0]?.distance?.value){
-      const roadDist = data.rows[0].elements[0].distance.value;
+    if(data.code === 'Ok' && data.routes?.[0]?.distance){
+      const roadDist = Math.round(data.routes[0].distance);
       state.distance = roadDist;
       document.getElementById('distVal').textContent = roadDist.toLocaleString();
-      document.querySelector('.dist-unit').textContent = 'เมตร (ตามเส้นทางถนน)';
+      document.querySelector('.dist-unit').textContent = 'เมตร (ตามเส้นทางถนน) 🛣️';
       document.getElementById('spanDist').value = roadDist;
+    } else {
+      document.querySelector('.dist-unit').textContent = 'เมตร (เส้นตรง — ไม่พบเส้นทางถนน)';
     }
-  } catch(e){ /* use fallback */ }
+  } catch(e){
+    document.querySelector('.dist-unit').textContent = 'เมตร (เส้นตรง — ไม่มีสัญญาณ)';
+  }
 }
 
 function selectWork(el, type){
@@ -810,15 +814,13 @@ function resetForm(){
 
 function saveSettings(){
   localStorage.setItem('webhookUrl', document.getElementById('webhookUrl').value);
-  localStorage.setItem('mapsApiKey', document.getElementById('mapsApiKey').value);
+
   showToast('บันทึกการตั้งค่าแล้ว','success');
 }
 
 function loadSettings(){
   const w = localStorage.getItem('webhookUrl');
-  const m = localStorage.getItem('mapsApiKey');
   if(w) document.getElementById('webhookUrl').value = w;
-  if(m) document.getElementById('mapsApiKey').value = m;
 }
 
 function showPage(id){
