@@ -2,7 +2,7 @@
   "name": "Optic Cable MA Field App",
   "short_name": "Cable MA",
   "description": "Field reporting app for optic cable maintenance",
-  "start_url": "/cable-ma-app/index.html",
+  "start_url": "/cable-ma-app/index.html",  
   "scope": "/cable-ma-app/",
   "display": "standalone",
   "background_color": "#0F172A",
