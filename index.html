@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="th">
-<head> 
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0F172A">
@@ -392,8 +392,8 @@
   </div>
   <div class="status-card" style="border-color:var(--green);margin-bottom:16px;">
     <div style="font-size:12px;color:var(--green);line-height:1.8;">
-      🛣️ ระยะทางตามถนน ใช้ <strong>OSRM</strong> เส้นทางเล็กๆอาจไม่แม่นยำเหมือน API ของ Google Maps นะครับ<br>
-   
+      🛣️ ระยะทางตามถนน ใช้ <strong>OSRM</strong> ฟรี 100%<br>
+      ไม่ต้องใช้ API Key ใดๆ ครับ
     </div>
   </div>
   <button class="submit-btn" onclick="saveSettings()">
@@ -651,8 +651,8 @@ async function submitData(){
     cableCore: cableCore === 'other' ? cableOther : cableCore,
     spanDistance: spanDist,
     straightDistance: state.distance,
-    startCoord: state.startCoord,
-    stopCoord: state.stopCoord,
+    startCoord: state.startCoord ? state.startCoord.lat.toFixed(6)+','+state.startCoord.lng.toFixed(6) : '',
+    stopCoord: state.stopCoord ? state.stopCoord.lat.toFixed(6)+','+state.stopCoord.lng.toFixed(6) : '',
     workType: workTypeMap[state.workType],
     reasons: reasons.join(', '),
     note,
@@ -726,9 +726,13 @@ async function trySendQueue(){
         showToast('ส่งข้อมูล '+queue[i].jobNo+' สำเร็จ','success');
       } else {
         queue[i].status = 'pending';
+        queue[i].lastError = 'HTTP '+res.status+' '+res.statusText;
+        showToast('ส่งไม่สำเร็จ: HTTP '+res.status,'error');
       }
     } catch(e){
       queue[i].status = 'pending';
+      queue[i].lastError = e.message || 'Network error';
+      showToast('ส่งไม่สำเร็จ: '+queue[i].lastError,'error');
     }
     updated = true;
   }
@@ -759,6 +763,7 @@ function renderQueue(){
         📡 ${r.cableCore} Core &nbsp;|&nbsp; 📏 ${Number(r.spanDistance).toLocaleString()} ม.<br>
         🔧 ${r.workType}
         ${r.reasons ? '<br>⚠️ '+r.reasons : ''}
+        ${r.lastError ? '<br><span style="color:var(--red);font-size:11px;">❌ '+r.lastError+'</span>' : ''}
       </div>
       <div class="queue-actions">
         ${r.status!=='done'?`<button class="queue-act-btn send" onclick="retrySend('${r.id}')">ส่งอีกครั้ง</button>`:''}
